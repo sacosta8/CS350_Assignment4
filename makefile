@@ -1,10 +1,8 @@
 all: readwrite
 
-readwrite: readwrite.o
-	g++ readwrite.o -o readwrite
+readwrite: readwrite.cpp
+	g++ readwrite.cpp -g -o readwrite -lpthread
 
-readwrite.o: readwrite.cpp
-	g++ readwrite.cpp -c
 
 clean: 
 	rm *.o readwrite
