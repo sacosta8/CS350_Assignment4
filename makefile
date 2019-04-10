@@ -6,3 +6,6 @@ readwrite: readwrite.cpp
 
 clean: 
 	rm *.o readwrite
+
+reader_clean:
+	rm reader_*

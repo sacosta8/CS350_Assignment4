@@ -1,5 +1,5 @@
 #include<iostream>
-#include<typeinfo>
+#include<fstream>
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
@@ -8,8 +8,8 @@
 
 struct Node {
 	Node * next;
-	std::string data;
-	Node(std::string data){
+	int data;
+	Node(int data){
 	this->next = NULL;
 	this->data = data;
 	}
@@ -35,7 +35,8 @@ public:
 		}
 	}
 
-	void insert(Node * node){
+	void insert(int data){
+		Node * node = new Node(data);
 		if(head == NULL){
 			head = node;
 			return;
@@ -52,23 +53,31 @@ public:
 struct readerArgs {
 	int readerNumber;
 	int n;
+	LinkedList * list;
 };
 
 struct writerArgs {
 	int writerNumber;
 	int n;
 	int data;
+	LinkedList * list;
 };
 
 void * reader( void * arguments){
 	readerArgs * args = (readerArgs *) arguments;
 	std::string fileNumber = std::to_string(args->readerNumber);
-	std::string filename = "reader_" + fileNumber;
-	std::cout << filename.c_str() << std::endl;
+	std::string filename = "reader_" + fileNumber + ".txt";
+	std::fstream file;
+	file.open(filename.c_str(),std::fstream::out);
+
+	file << filename + "\n";
+
+	file.close();
 }
 
 void * writer(void * arguments){
 	writerArgs * args = (writerArgs *) arguments;
+	args->list->insert(args->data);	
 
 }
 
@@ -83,18 +92,21 @@ int main(int argc, char * argv[]){
 		r = atoi(argv[2]);
 		w = atoi(argv[3]);
 		if ( ( (n >= 1) && (n <= 100) ) && ( (r >= 1) && (r <= 9) ) && ( (w >= 1) && (w <= 9) ) ){
+			LinkedList * list = (LinkedList *) malloc(sizeof(LinkedList));
 			pthread_t readerThreads[r];
 			pthread_t writerThreads[w];
 			for(int i = 0; i < r; i++){
 				readerArgs * args = (readerArgs *) malloc(sizeof(readerArgs));
 				args->readerNumber = i+1;
 				args->n = n;
+				args->list = list;
 				pthread_create(&readerThreads[i],NULL,reader, (void *) args);
 			}
 			for(int i = 0; i < w; i++){
 				writerArgs * args = (writerArgs *) malloc(sizeof(writerArgs));
 				args->writerNumber = i+1;
 				args->n = n;
+				args->list = list;
 				//To make writer random number
 				int randNum = rand() % 1000 + 1;
 				int difference = (randNum % 10) - (i+1);
@@ -105,6 +117,7 @@ int main(int argc, char * argv[]){
 				args->data = randNum;
 				pthread_create(&writerThreads[i],NULL,writer, (void *) args);
 			}
+			list->traverse();
 
 		}
 		else {
