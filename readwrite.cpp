@@ -7,7 +7,10 @@
 #include<pthread.h>
 #include<time.h>
 #include<semaphore.h>
+pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t c = PTHREAD_COND_INITIALIZER;
 
+int global_reader = 0;
 struct Node {
 	Node * next;
 	int data;
@@ -124,6 +127,13 @@ void * reader( void * arguments){
 				sem_post(&lac->resource);
 		sem_post(&lac->rmutex);
 		std::cout << "reader" << args->readerNumber << " done" << std::endl;
+    pthread_mutex_lock(&m);
+    global_reader--;
+    if (global_reader == 1) {
+        pthread_cond_signal(&c);    
+    }
+    pthread_mutex_unlock(&m);
+  
 		struct timespec req = {0};
 		int mil = rand() % 100 + 1;
 		req.tv_nsec = mil * 1000000L;
@@ -169,6 +179,14 @@ void * writer(void * arguments){
 	std::cout << "Writer " << args->writerNumber << " done" << std::endl;
 }
 
+void * readerCount(void * args) {
+      pthread_mutex_lock(&m);
+      while (global_reader != 1) 
+        pthread_cond_wait(&c, &m);
+      std::cout << "Almost Done!" << std::endl;
+      pthread_mutex_unlock(&m);
+}
+
 int main(int argc, char * argv[]){
 	int n;
 	int r;
@@ -180,10 +198,12 @@ int main(int argc, char * argv[]){
 		r = atoi(argv[2]);
 		w = atoi(argv[3]);
 		if ( ( (n >= 1) && (n <= 100) ) && ( (r >= 1) && (r <= 9) ) && ( (w >= 1) && (w <= 9) ) ){
+      global_reader = r*n;
 			LinkedList * list = new LinkedList();
 			locksAndCounts * lac = new locksAndCounts();
 			pthread_t readerThreads[r];
 			pthread_t writerThreads[w];
+      pthread_t cond_thread;
 			for(int i = 0; i < r; i++){
 				readerThreads[i] = i;
 				readerArgs * args = new readerArgs(i,n);
@@ -193,6 +213,7 @@ int main(int argc, char * argv[]){
 				args->lac = lac;
 				pthread_create(&readerThreads[i],NULL,reader, (void *) args);
 			}
+      pthread_create(&cond_thread,NULL, readerCount, NULL);  
 			for(int i = 0; i < w; i++){
 				writerThreads[i] = i;
 				writerArgs * args = new writerArgs(i,n);
@@ -208,6 +229,8 @@ int main(int argc, char * argv[]){
 			
 			for(int i = 0; i < r; i++)
 				pthread_join(readerThreads[i],NULL);
+      
+      pthread_join(cond_thread, NULL);
 
 		}
 		else {
