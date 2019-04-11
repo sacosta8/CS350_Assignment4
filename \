@@ -111,19 +111,20 @@ void * reader( void * arguments){
 		sem_wait(&lac->readTry);	
 			sem_wait(&lac->rmutex);
 			lac->readcount++;
+			int value;
+			sem_getvalue(&lac->rmutex,&value);
 			if(lac->readcount == 1)
 				sem_wait(&lac->resource);
 			sem_post(&lac->rmutex);
 		sem_post(&lac->readTry);
 		int count = args->list->traverse(args->readerNumber);
-		std::string message = "Reader " + std::to_string(args->readerNumber) + ": Read " + std::to_string(i) + ": " + std::to_string(count) + " values ending in " + std::to_string(args->readerNumber) + "\n";
+		std::string message = "Reader " + std::to_string(args->readerNumber) + ": Read " + std::to_string(i) + ": " + std::to_string(count) + " values ending in " + std::to_string(args->readerNumber);
 		file << message;
 		sem_wait(&lac->rmutex);
-			lac->readcount--;
-			if (lac->readcount == 0)
-				sem_post(&lac->resource);
+		lac->readcount--;
+		if (lac->readcount == 0)
+			sem_post(&lac->resource);
 		sem_post(&lac->rmutex);
-		std::cout << "reader" << args->readerNumber << " done" << std::endl;
 		nanosleep(0,NULL);
 	}
 
@@ -137,28 +138,26 @@ void * writer(void * arguments){
 	for(int i = 0; i < args->n; i++){
 		//To make writer random number
 		int randNum = rand() % 1000 + 1;
-		int difference = (randNum % 10) - args->writerNumber;
+		int difference = (randNum % 10) - (args->writerNumber+1);
 		if(difference > 0)
 			randNum -= difference;
 		if(difference < 0)
 			randNum += difference * -1;
 		sem_wait(&lac->wmutex);
-			lac->writecount++;
-			if (lac->writecount == 1)
-				sem_wait(&lac->readTry);
+		lac->writecount++;
+		if (lac->writecount == 1)
+			sem_wait(&lac->readTry);
 		sem_post(&lac->wmutex);
 		sem_wait(&lac->resource);
-			args->list->insert(randNum);
+		args->list->insert(randNum);
 		sem_post(&lac->resource);
 		sem_wait(&lac->wmutex);
-			lac->writecount--;
-			if (lac->writecount == 0){
-				sem_post(&lac->readTry);
-			}
+		lac->writecount--;
+		if (lac->writecount == 0)
+			sem_wait(&lac->readTry);
 		sem_post(&lac->wmutex);
 		nanosleep(0,NULL);
 	}
-	std::cout << "Writer " << args->writerNumber << " done" << std::endl;
 }
 
 int main(int argc, char * argv[]){
@@ -194,9 +193,8 @@ int main(int argc, char * argv[]){
 				args->lac = lac;
 				pthread_create(&readerThreads[i],NULL,reader, (void *) args);
 			}
-			for(int i = 0; i < w; i++){
-				pthread_join(writerThreads[i],NULL);
-			}
+			for(int i = 0; i < w; i++)
+				std::cout << pthread_join(writerThreads[i],NULL) << std::endl;
 			
 			for(int i = 0; i < r; i++)
 				pthread_join(readerThreads[i],NULL);
