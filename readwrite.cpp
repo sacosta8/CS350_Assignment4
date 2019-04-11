@@ -124,7 +124,11 @@ void * reader( void * arguments){
 				sem_post(&lac->resource);
 		sem_post(&lac->rmutex);
 		std::cout << "reader" << args->readerNumber << " done" << std::endl;
-		nanosleep(0,NULL);
+		struct timespec req = {0};
+		int mil = rand() % 100 + 1;
+		req.tv_nsec = mil * 1000000L;
+		req.tv_sec = 0;
+		nanosleep(&req,(struct timespec *) NULL);
 	}
 
 	file.close();
@@ -156,7 +160,11 @@ void * writer(void * arguments){
 				sem_post(&lac->readTry);
 			}
 		sem_post(&lac->wmutex);
-		nanosleep(0,NULL);
+		struct timespec req = {0};
+		req.tv_sec = 0;
+		int mil = rand() % 100 + 1;
+		req.tv_nsec = mil * 1000000L;
+		nanosleep(&req,(struct timespec *) NULL);
 	}
 	std::cout << "Writer " << args->writerNumber << " done" << std::endl;
 }
@@ -176,15 +184,6 @@ int main(int argc, char * argv[]){
 			locksAndCounts * lac = new locksAndCounts();
 			pthread_t readerThreads[r];
 			pthread_t writerThreads[w];
-			for(int i = 0; i < w; i++){
-				writerThreads[i] = i;
-				writerArgs * args = new writerArgs(i,n);
-				args->writerNumber = i+1;
-				args->n = n;
-				args->list = list;
-				args->lac = lac;
-				pthread_create(&writerThreads[i],NULL,writer, (void *) args);
-			}
 			for(int i = 0; i < r; i++){
 				readerThreads[i] = i;
 				readerArgs * args = new readerArgs(i,n);
@@ -193,6 +192,15 @@ int main(int argc, char * argv[]){
 				args->list = list;
 				args->lac = lac;
 				pthread_create(&readerThreads[i],NULL,reader, (void *) args);
+			}
+			for(int i = 0; i < w; i++){
+				writerThreads[i] = i;
+				writerArgs * args = new writerArgs(i,n);
+				args->writerNumber = i+1;
+				args->n = n;
+				args->list = list;
+				args->lac = lac;
+				pthread_create(&writerThreads[i],NULL,writer, (void *) args);
 			}
 			for(int i = 0; i < w; i++){
 				pthread_join(writerThreads[i],NULL);
