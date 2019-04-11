@@ -1,4 +1,5 @@
 #include<iostream>
+#include<unistd.h>
 #include<fstream>
 #include<stdlib.h>
 #include<stdio.h>
@@ -77,6 +78,12 @@ struct readerArgs {
 	int n;
 	LinkedList * list;
 	locksAndCounts * lac;
+	readerArgs(int i,int n){
+		readerNumber = i;
+		this->n = n;
+		lac = NULL;
+		list = NULL;
+	}
 };
 
 struct writerArgs {
@@ -84,6 +91,12 @@ struct writerArgs {
 	int n;
 	LinkedList * list;
 	locksAndCounts * lac;
+	writerArgs(int i,int n){
+		writerNumber = i;
+		this->n = n;
+		lac = NULL;
+		list = NULL;
+	}
 };
 
 
@@ -113,6 +126,7 @@ void * reader( void * arguments){
 		if (lac->readcount == 0)
 			sem_post(&lac->resource);
 		sem_post(&lac->rmutex);
+		nanosleep(0,NULL);
 	}
 
 	file.close();
@@ -125,11 +139,13 @@ void * writer(void * arguments){
 	for(int i = 0; i < args->n; i++){
 		//To make writer random number
 		int randNum = rand() % 1000 + 1;
-		int difference = (randNum % 10) - (i+1);
+		int difference = (randNum % 10) - (args->writerNumber+1);
 		if(difference > 0)
 			randNum -= difference;
 		if(difference < 0)
 			randNum += difference * -1;
+		if (randNum > 999)
+			std::cout << "osafhosdaifhsdaiofsaiodhfoisdahfiosdahfiosdahfiodahfoisdahoisdahfiodsahfosidahfiosdhfiosdahfoisdahfioadhfiosdhfioasdhfiosdafiodhsfoisdfio" << std::endl;
 		sem_wait(&lac->wmutex);
 		lac->writecount++;
 		if (lac->writecount == 1)
@@ -139,20 +155,12 @@ void * writer(void * arguments){
 		args->list->insert(randNum);
 		sem_post(&lac->resource);
 		sem_wait(&lac->wmutex);
-		lac->writecount++;
+		lac->writecount--;
 		if (lac->writecount == 0)
 			sem_wait(&lac->readTry);
 		sem_post(&lac->wmutex);
+		nanosleep(0,NULL);
 	}
-	int value;
-	sem_getvalue(&lac->wmutex,&value);
-	std::cout << "wmutex: " << value;
-	sem_getvalue(&lac->resource,&value);
-	std::cout << "resource: " << value;
-	sem_getvalue(&lac->readTry,&value);
-	std::cout << "readTry: " << value;
-	
-
 }
 
 int main(int argc, char * argv[]){
@@ -166,12 +174,13 @@ int main(int argc, char * argv[]){
 		r = atoi(argv[2]);
 		w = atoi(argv[3]);
 		if ( ( (n >= 1) && (n <= 100) ) && ( (r >= 1) && (r <= 9) ) && ( (w >= 1) && (w <= 9) ) ){
-			LinkedList * list = (LinkedList *) malloc(sizeof(LinkedList));
+			LinkedList * list = new LinkedList();
 			locksAndCounts * lac = new locksAndCounts();
 			pthread_t readerThreads[r];
 			pthread_t writerThreads[w];
 			for(int i = 0; i < w; i++){
-				writerArgs * args = (writerArgs *) malloc(sizeof(writerArgs));
+				writerThreads[i] = i;
+				writerArgs * args = new writerArgs(i,n);
 				args->writerNumber = i+1;
 				args->n = n;
 				args->list = list;
@@ -179,16 +188,18 @@ int main(int argc, char * argv[]){
 				pthread_create(&writerThreads[i],NULL,writer, (void *) args);
 			}
 			for(int i = 0; i < r; i++){
-				readerArgs * args = (readerArgs *) malloc(sizeof(readerArgs));
+				readerThreads[i] = i;
+				readerArgs * args = new readerArgs(i,n);
 				args->readerNumber = i+1;
 				args->n = n;
 				args->list = list;
 				args->lac = lac;
 				pthread_create(&readerThreads[i],NULL,reader, (void *) args);
 			}
-			for(int i = 0; i < w;i++)
-				pthread_join(writerThreads[i],NULL);
-			for(int i = 0; i < r;i++)
+			for(int i = 0; i < w; i++)
+				std::cout << pthread_join(writerThreads[i],NULL) << std::endl;
+			
+			for(int i = 0; i < r; i++)
 				pthread_join(readerThreads[i],NULL);
 
 		}

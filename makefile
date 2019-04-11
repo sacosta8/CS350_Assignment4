@@ -1,7 +1,7 @@
 all: readwrite
 
 readwrite: readwrite.cpp
-	g++ readwrite.cpp -g -o readwrite -lpthread -lrt
+	g++ -Wall readwrite.cpp -g -o readwrite -lpthread -lrt
 
 
 clean: 
